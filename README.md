@@ -28,9 +28,10 @@ A running theme of the work, and the reason for the honesty above: raising the m
 ## Core mechanics
 
 - **Two roads, one code.** Canonical `!commands` bypass the model entirely (zero tokens); free-form requests reach the same functions through tool calling. The model interprets and narrates; code executes. A canonical command is fed back to the model as a real synthesized tool exchange, not pasted prose, so the model never re-issues what code already ran.
-- **System prompt is L1/L2 only.** Boot data and all retrieved content arrive as conversation messages (marked L3), never in the system channel. The system carries law; the conversation carries data.
+- **System prompt is L1/L2 only.** Boot data and all retrieved content arrive as conversation messages, never in the system channel. The system carries law; the conversation carries data.
+- **A mark no file can wear.** Each run the engine draws half a mark at random and computes the other half from the law it actually loaded. Its own words carry that mark; stored content travels between borders that carry it, and imitations of the engine's framing are broken before the request is built. What is public can be copied - only what did not exist before the run resists forgery.
 - **Perimeter in code.** Effects on disk are the engine's job: a write jail (realpath-rooted), a consent gate for destructive actions, and per-app write allowlists.
-- **Retrieval-first memory.** Routing indexes stay in context; bulk content is fetched on demand and cited, not preloaded.
+- **Retrieval-first.** Routing indexes stay in context; bulk content is fetched on demand and cited, not preloaded.
 
 ## Quick start
 
@@ -64,7 +65,7 @@ Pre-release. The spec ([SPEC.md](SPEC.md), methodology v0.2) is the canon; this 
 
 These are limitations of **this engine and the protocol** - application-level defenses and their bugs (datamarking, memory hygiene, persona discipline) live with each application, e.g. the Grimoire.
 
-- **Injection is not solved.** Keeping L3 out of the system channel and enforcing the levels raises the bar, but no channel discipline makes a capable model incorruptible - residual behavioral drift is real. The engine's guarantee is that effects on disk are survivable (caged), not that the model always obeys. How hard a given application resists injection is measured, not assumed.
+- **Injection is not solved.** One class is now closed in code: text that forges the engine's own voice is broken before the model sees it, and the fixture that carried it was refused six runs out of six. Everything else stands open - a plain, plausible instruction sitting in a note imitates nothing, so nothing mechanical touches it, and there the defense is prose again. Measured through the day, on a mid-tier head: every defense that asked the model to *check* something failed on the first cold turn; only defenses that *removed* the attack held. The engine's guarantee remains that effects on disk are survivable, not that the model always obeys.
 - **No tests or CI, no drift numbers yet.** The M3 harness (scripted turns, an LLM judge, deterministic checks, a model matrix) is designed but not built. Treat every claim here as a hypothesis under measurement.
 - **Unstable surface.** APIs and the compose schema change without notice; SPEC.md still trails the engine on several points.
 - **Behavioral hygiene varies by model.** Cheaper heads carry the mechanism but not the voice; stronger heads rationalize rather than obey. Perception is not a guarantee - which is the whole reason the perimeter is code.

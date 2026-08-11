@@ -9,13 +9,19 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"
 TIMEOUT = 240
 DEFAULT_MAX_TOKENS = 2048
+OLLAMA_CTX = 16384
 
 
 class ApiError(Exception):
     pass
 
 
-def http_post(url, payload, headers, tries=4):
+RETRY_CODES = {429, 500, 502, 503, 504}
+RETRY_BASE = 5
+RETRY_MAX = 60
+
+
+def http_post(url, payload, headers, tries=5):
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode(),
@@ -27,10 +33,16 @@ def http_post(url, payload, headers, tries=4):
                 body = response.read()
         except urllib.error.HTTPError as e:
             detail = e.read().decode(errors="replace")[:300]
-            if e.code == 429 and attempt < tries - 1:
-                retry_after = e.headers.get("Retry-After") or ""
-                wait = int(retry_after) if retry_after.isdigit() else 2 * (attempt + 1)
-                print("[rate limited - retrying in", wait, "s]")
+            if e.code in RETRY_CODES and attempt < tries - 1:
+                after = (e.headers.get("Retry-After") or "").strip()
+                if after.isdigit():
+                    wait = min(int(after), RETRY_MAX)
+                else:
+                    wait = min(RETRY_BASE * 2 ** attempt, RETRY_MAX)
+                print(
+                    "[HTTP", e.code, "- retrying in", wait,
+                    "s, attempt", attempt + 2, "of", tries, "]",
+                )
                 time.sleep(wait)
                 continue
             raise ApiError("HTTP " + str(e.code) + " - " + detail)
@@ -42,6 +54,17 @@ def http_post(url, payload, headers, tries=4):
             raise ApiError(
                 "bad response - not json: " + body.decode(errors="replace")[:300]
             )
+
+
+SEEN_MODEL = None
+
+
+def announce_model(name):
+    """Name the head once - and again only if the provider swaps it."""
+    global SEEN_MODEL
+    if name and name != SEEN_MODEL:
+        SEEN_MODEL = name
+        print("[model]", name)
 
 
 def law_of(context):
@@ -89,12 +112,16 @@ def to_openai_messages(messages, with_ids):
                 if with_ids:
                     result["tool_call_id"] = block["tool_use_id"]
                 tool_results.append(result)
-        if text or tool_calls:
+        if tool_results:
+            # Data first, the engine's own words after it - never merged.
+            out.extend(tool_results)
+            if text:
+                out.append({"role": message["role"], "content": text})
+        elif text or tool_calls:
             entry = {"role": message["role"], "content": text}
             if tool_calls:
                 entry["tool_calls"] = tool_calls
             out.append(entry)
-        out.extend(tool_results)
     return out
 
 
@@ -119,10 +146,25 @@ def send_ollama(context, messages, llm, tools):
         "messages": [{"role": "system", "content": system}]
         + to_openai_messages(messages, with_ids=False),
         "stream": False,
+        # Ollama's default window is smaller than the law - without this
+        # the law is silently truncated and the run measures nothing.
+        "options": {
+            "num_ctx": OLLAMA_CTX,
+            "num_predict": llm.get("max_tokens", DEFAULT_MAX_TOKENS),
+        },
     }
     if tools:
         payload["tools"] = to_openai_tools(tools)
     answer = http_post(OLLAMA_URL, payload, {"Content-Type": "application/json"})
+    if not llm.get("quiet"):
+        announce_model(answer.get("model"))
+        print(
+            "[usage]",
+            answer.get("prompt_eval_count", 0),
+            "in /",
+            answer.get("eval_count", 0),
+            "out",
+        )
     message = answer["message"]
     blocks = []
     if message.get("content"):
@@ -184,6 +226,7 @@ def send_mistral(context, messages, llm, tools):
         )
     usage = answer.get("usage") or {}
     if not llm.get("quiet"):
+        announce_model(answer.get("model"))
         print(
             "[usage]",
             usage.get("prompt_tokens", 0),

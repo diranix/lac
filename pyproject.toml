@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "llm-as-code"
-version = "0.2.0"
+version = "0.3.0"
 description = "LaC (LLM as Code) - reference engine. Declarative behavior for LLM apps: law in files, perimeter in code."
 license = "Apache-2.0"
 readme = "README.md"

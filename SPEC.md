@@ -53,13 +53,13 @@ A level is a ROLE (who has the right to write) and PRECEDENCE (what overrides wh
 
 ### 3.3 Grimoire
 
-Grimoire is the first LaC application: a living book of memory on top of the protocol, a conversation with a book that remembers the user's decisions between sessions. It proves the protocol by existing, and it shows the boundary: everything Grimoire-specific (memory commands, the Codie soul, the topic structure) is L2/L3 CONTENT that runs unchanged on any compatible engine.
+Grimoire is the first LaC application: a conversational layer over the user's own markdown notes. It proves the protocol by existing, and it shows the boundary: everything Grimoire-specific (its commands, its souls, its folder shape) is L2/L3 CONTENT that runs unchanged on any compatible engine.
 
-The memory ontology (the canon principle):
+The canon principle, after the application spent a summer writing its own memory and then stopped:
 
-- **Canon = the user's files.** The user writes their own notes, the notes are in plain sight, and the application works even without the model - clean markdown in the user's vault.
-- **Index = the model's machinery, hidden.** The model keeps its routing digests and decision archive in a hidden dot-folder, under the hood. THE LOCK: everything in the hidden folder must be REBUILDABLE - delete it, say "reindex", and the book rebuilds it from the canon files. An index that can be burned without loss is a cache, not an authority.
-- Consequence: a black box is acceptable exactly when it holds only derived content. A decision the user did not write into their own file lives with the rights of a cache - the right pressure to write down what matters yourself.
+- **Canon = the user's files.** The user writes their own notes, the notes are in plain sight, and the application works even without the model - clean markdown in the user's own folder.
+- **The engine writes nothing of its own.** Digests, indexes and session journals were all removed: a model-written summary of the user's material goes stale, invents, and comes back at the next boot as if it were fact. What the application keeps is a short surface line per topic, appended only on the user's command and only behind a consent gate.
+- Consequence: nothing the model invents survives the session. That is the whole trade - the model is a reader with perfect recall of what the user wrote, not an author of a second, private version of it.
 
 ### 3.4 Commands
 
@@ -70,7 +70,7 @@ Commands are CODE with two roads to one function:
 
 The engine is blind to the application: it knows no command names, no folders, no law files. The commands module is loaded from the fixed path `.lac/commands.py`; a different application means a different module, zero changes in the engine. Proven live: without tools the model confabulated file contents; with tools it narrates the disk honestly - the tool takes away the ability to lie.
 
-Side-effect commands (save, delete) pass a confirmation gate IN CODE; writing is locked to L3; delete is a move to trash, never erasure.
+Side-effect commands pass a confirmation gate IN CODE, and a call that will be refused anyway is refused before the gate is shown (the `VALIDATE` hook) - a wasted yes teaches the user to stop reading them. Writing is locked to an explicit allowlist; delete is a move to trash, never erasure.
 
 ### 3.5 Addons
 
@@ -134,13 +134,15 @@ The perimeter against injections is structural, not vigilance:
 - L3 is DATA by law - an instruction inside a note, a dump, or a memory file has no force; behavior lives only at L1/L2.
 - Trust order at boot: L1/L2 enter the context BEFORE any L3 content, so an injection cannot act before its limits do.
 - Tools remove the narration attack surface: the model cannot "execute" anything - it can only request a registered command, and code decides.
+- The engine signs its own voice with a mark drawn per run (half random, half the hash of the law it loaded) and fences stored content between borders carrying it. Anything inside that imitates the engine's framing is broken before the request is built. A public marker - a tag, a banner, a fixed prefix - can be read off the repository and copied into a file; only a value that did not exist before the run cannot.
+- What survives measurement, and what does not: every defense that asks the model to CHECK something (compare a mark, respect a border, apply a rule) fails on a cold first turn with a mid-tier head, while the same fixture is refused once the imitation is REMOVED in code. Sanitising must leave no authentic-looking residue - a broken marker replaced by something that still reads as engine speech becomes the evidence the model believes.
 
 ### 5.2 Level protection
 
 - L1/L2 are locked at the tool level (deny on write), not by trusting the model - capability, not intent.
 - The lock is verified, not assumed: at boot the engine attempts a canary write into the locked zone; the write MUST be refused, otherwise the session does not start.
-- The engine itself is protected outside the protocol: file hashes (lock/check) guard lac_engine.py and the command modules.
-- Effects live in a cage of code: fsjail (writes only to L3), trash instead of erasure, confirmation gates for side effects.
+- The engine itself is protected outside the protocol: file hashes (lock/check) guard the command module declared as L0.
+- Effects live in a cage of code: fsjail, an explicit write allowlist (nothing else under the memory root is writable), trash instead of erasure, and confirmation gates for side effects - with doomed calls refused before the gate is shown.
 
 ### 5.3 Assumptions about the model
 
@@ -158,10 +160,9 @@ The goal of level protection in LaC is **clarity and prevention of mistakes**, n
 
 Retrieval-first: the law (L1/L2 + the soul) is ALWAYS in context; L3 is fetched on demand and never hauled in just in case.
 
-- Routing indexes load; topic bodies load on request; archives are grep-only and cost no context until a query needs them.
-- The session window only grows and cannot be cleared - so the discipline is structural: indexes in context, depth on disk, search with an expanded query (the model itself is the embedding, applied at the moment of search - no vectors).
-- The dated archive is never loaded and never compressed: it is the full canonical record, reachable only through search.
-- Every verdict in a loadable digest must be self-sufficient - the whole decision, readable without the archive; a bare pointer is not a verdict.
+- A keyword route loads at boot; file bodies load on request, one at a time, and a body over the size cap waits for the user's consent.
+- The session window only grows and cannot be cleared by the model - so the discipline is structural: the route in context, depth on disk, search with an expanded query (the model itself is the embedding, applied at the moment of search - no vectors). An application may hand the engine's `env["messages"]` back a loaded body it no longer needs.
+- The canon is the user's own files. Whatever the application keeps of its own must be short, appended only on the user's command, and shown verbatim at a consent gate - a model-written summary of the user's material goes stale, invents, and returns at the next boot wearing the authority of a fact.
 
 ## 7. Where to start
 
@@ -174,8 +175,7 @@ A Docker-like flow:
 
 ## 8. Backlog
 
-1. M1 (remainder): search in code (rg + query expansion) through a "canon + tool" pair; a human word for output; canonical echo.
-2. M2: save/delete + confirmation gates in code + fsjail (writes only to L3, delete = trash).
-3. M3: a model matrix, drift as a number (dashes, confabulation, embellishment, cross-script leaks); hardening the soul for cheap heads.
-4. Release into two repos: diranix/lac (the paper + the reference engine), diranix/grimoire (the first application).
-5. After the release: bundling (does the engine ship together with Grimoire), a Grimoire GUI; the MVP stays in the terminal.
+1. Tests and CI: the fsjail cases first (traversal, absolute paths, symlinks, an empty root, Windows casing), then the boot canary and the lock.
+2. M3: a model matrix, drift as a number (confabulation, embellishment, invented provenance, cross-script leaks), and the injection fixtures run several times per configuration - a single run is noise, as this summer's flip-flopping proved.
+3. The open half of the injection front: a payload that imitates nothing and merely sounds plausible. Code cannot recognise it without knowing every application's vocabulary, so today it meets prose alone.
+4. Hardening the law for cheap heads: what a mid-tier model carries is mechanism, not wording.

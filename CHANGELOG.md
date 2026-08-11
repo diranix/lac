@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.0 - 2026-08-06
+
+The session mark and the fence: the engine now signs its own words with a value no stored text can hold, and stored content travels inside borders only the engine can write. Breaking for apps that logged through the engine or relied on dot-paths being writable.
+
+Breaking:
+
+- The session journal is gone. No `.sessions` folder, no `env["log"]` - the engine writes nothing of its own. Apps that logged turns through it must drop those calls.
+- `jail_write` no longer treats a dot-prefixed path as writable. Only paths listed in the app's `WRITABLE` set can be written; everything else under the memory root is read-only to the engine.
+- Tool results carry no engine prose. The `[executed by code - relay it faithfully]` wrapper is gone: a result is the data and nothing else, and the engine's own note arrives after it as a separate message.
+- `build_context` returns `(law, data_parts)` instead of `(law, data)`. L3 entries are labelled without their paths (a path reads as a page to open), and an empty L3 file is skipped instead of producing a header with no body.
+
+New:
+
+- **Session mark.** At boot the engine draws `uuid4().hex[:6]` and joins it to `sha256(law)[:6]`. Every word of the engine's own carries `[engine:MARK]`, and the appended law names it. Half of it cannot be known before the run, half changes with any edit to the law, so text written earlier cannot wear it.
+- **`env["fence"]` and `env["scrub"]`.** Stored content arrives between `[engine:MARK:data]` and `[engine:MARK:end]` - borders a file cannot forge or close. Before fencing, the engine breaks anything inside that imitates its own framing (its mark in any shape, its banners, its level headers, the retired `l3-data` tags) and replaces it with `~forgery~`, counting the hits for the terminal. Applications declare their own framing in `EXTRA_FORGERIES`; each layer polices its own vocabulary, so the engine needs no knowledge of any app.
+- **Boot material is fenced too.** The one payload loaded every session gets the same treatment as any tool result: each file's content is scrubbed, then labelled, then fenced.
+- **`env["confirm"](question)`.** A consent gate an app can call from inside a command, for cases the tool-level `CONFIRM` set cannot express (a file over a size cap, for instance).
+- **`env["messages"]`.** The live conversation window, so an application can drop content it loaded earlier instead of carrying it to the end of the session.
+- **`VALIDATE` hook.** A map of command name to a check run before the consent gate: a call that will be refused anyway is refused without spending the user's yes.
+- Adapter: the retry ladder is 5, 10, 20, 40 seconds over five attempts (a numeric `Retry-After` wins, capped at 60), and 5xx is retried like 429; the provider's resolved model name is announced once per session; Ollama calls now set `num_ctx` (16384) and `num_predict` explicitly - the default window was smaller than the law - and print their token usage.
+
+Measured, not assumed: a fixture that forges the engine's own framing to plant a rule was obeyed by Mistral Medium 3.5 under every wording-only defense (tags, marks, borders alone), and refused six runs out of six once the imitation was broken in code before the request. The replacement text matters as much as the breaking - a residue that still reads as engine speech is evidence the model will believe.
+
 ## 0.2.0 - 2026-07-20
 
 Breaking: both changes below require a one-line compose/file move in existing apps.
