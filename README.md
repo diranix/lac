@@ -72,7 +72,7 @@ These are limitations of **this engine and the protocol** - application-level de
 
 ## First application
 
-[Grimoire](https://github.com/diranix/grimoire) - a personal memory system and the first LaC application. Its earlier implementation runs the same protocol on Claude Code, with the perimeter enforced by harness permissions instead of engine code: one law, two hosts.
+[Grimoire](https://github.com/diranix/grimoire) - a conversational layer over the user's own markdown notes, and the first LaC application. It keeps no memory of its own: the engine lists, opens and greps the user's files, and what the model invents dies with the session. Its earlier implementation runs the same protocol on Claude Code, with the perimeter enforced by harness permissions instead of engine code: one law, two hosts.
 
 ## License
 
